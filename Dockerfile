@@ -5,7 +5,6 @@
 
 # ---- Stage 1: Builder ----
 FROM python:3.10-slim AS builder
-
 WORKDIR /app
 
 # Install build dependencies
@@ -14,17 +13,22 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     g++ \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy requirements and install with pip
+# Create a global virtual environment
+RUN python -m venv /opt/venv
+ENV PATH="/opt/venv/bin:$PATH"
+
+# Copy requirements and install directly inside the venv
 COPY requirements.txt .
-RUN pip install --no-cache-dir --user -r requirements.txt
+RUN pip install --no-cache-dir -r requirements.txt
+
 
 # ---- Stage 2: Final Image ----
 FROM python:3.10-slim
 
-# Set environment variables
+# Set environment variables (Updated PATH to use the global venv)
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
-    PATH="/root/.local/bin:$PATH" \
+    PATH="/opt/venv/bin:$PATH" \
     APP_HOST=0.0.0.0 \
     APP_PORT=8000 \
     MLFLOW_TRACKING_URI=sqlite:///app/data/mlflow.db \
@@ -38,8 +42,8 @@ RUN groupadd -r appuser && \
     mkdir -p /app/data && \
     chown -R appuser:appuser /app
 
-# Copy installed packages from builder stage
-COPY --from=builder /root/.local /root/.local
+# Copy the entire virtual environment from builder stage
+COPY --from=builder /opt/venv /opt/venv
 
 # Copy application code
 COPY config.py .
