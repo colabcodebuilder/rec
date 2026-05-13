@@ -1,43 +1,51 @@
 version: '3.8'
 
 services:
-  healthcare-api:
-    build:
-      context: .
-      dockerfile: Dockerfile
-    image: healthcare-recsys:latest
-    container_name: healthcare-api
-    ports:
-      - "8000:8000"
-    environment:
-      - APP_HOST=0.0.0.0
-      - APP_PORT=8000
-      - MLFLOW_TRACKING_URI=sqlite:///app/data/mlflow.db
-    volumes:
-      - ./data:/app/data
-      - ./mlruns:/app/mlruns
-    restart: unless-stopped
-    healthcheck:
-      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 10s
-    networks:
-      - healthcare-network
-
   mlflow-server:
-    image: python:3.10-slim
+    image: healthcare-recsys:latest
     container_name: mlflow-server
-    working_dir: /app
-    command: >
-      sh -c "pip install mlflow && mlflow server --backend-store-uri sqlite:///data/mlflow.db --default-artifact-root /app/mlruns --host 0.0.0.0 --port 5000"
+    # Run server directly using the image's pre-installed dependencies
+    command: mlflow server --backend-store-uri sqlite:///app/data/mlflow.db --default-artifact-root /app/mlruns --host 0.0.0.0 --port 5000
     ports:
       - "5000:5000"
     volumes:
       - ./data:/app/data
       - ./mlruns:/app/mlruns
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:5000/')"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+    networks:
+      - healthcare-network
+
+  healthcare-api:
+    image: healthcare-recsys:latest
+    container_name: healthcare-api
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "8000:8000"
+    environment:
+      - APP_HOST=0.0.0.0
+      - APP_PORT=8000
+      # Route tracking through the network instead of accessing the database file directly
+      - MLFLOW_TRACKING_URI=http://mlflow-server:5000
+    volumes:
+      - ./data:/app/data
+      - ./mlruns:/app/mlruns
+    restart: unless-stopped
+    depends_on:
+      mlflow-server:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
     networks:
       - healthcare-network
 
