@@ -1,6 +1,7 @@
 # ===========================================
 # Healthcare Recommendation System Dockerfile
 # Multi-stage build with MLflow support
+# (Reliable copy of full Python installation)
 # ===========================================
 
 # ---- Stage 1: Builder ----
@@ -8,20 +9,20 @@ FROM python:3.10-slim AS builder
 
 WORKDIR /app
 
-# Install build dependencies
+# Install system dependencies needed for compilation
 RUN apt-get update && apt-get install -y --no-install-recommends \
     gcc \
     g++ \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy requirements and install **globally** (no --user)
+# Copy requirements and install packages globally
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 # ---- Stage 2: Final Image ----
 FROM python:3.10-slim
 
-# Set environment variables
+# Environment
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     PATH="/usr/local/bin:$PATH" \
@@ -32,15 +33,14 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 
 WORKDIR /app
 
-# Create non-root user
+# Create non-root user and data directory
 RUN groupadd -r appuser && \
     useradd -r -g appuser -d /app -s /sbin/nologin appuser && \
     mkdir -p /app/data && \
     chown -R appuser:appuser /app
 
-# Copy globally installed Python packages from builder
-COPY --from=builder /usr/local/lib/python3.10/site-packages /usr/local/lib/python3.10/site-packages
-COPY --from=builder /usr/local/bin /usr/local/bin
+# Copy the entire Python installation from builder (includes site-packages, bin, libs)
+COPY --from=builder /usr/local /usr/local
 
 # Copy application code
 COPY config.py .
@@ -64,5 +64,5 @@ EXPOSE ${MLFLOW_PORT}
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
     CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:${APP_PORT}/health')" || exit 1
 
-# Default command: start API server
+# Default command
 CMD ["python", "main.py", "api"]
