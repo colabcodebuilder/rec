@@ -1,0 +1,4 @@
+provider_id,speciality,score,explanation
+Doctor_001,Neurologist,1.904,"{'matched_conditions': ['migraine'], 'score_breakdown': {'medical_fit_impact': 0.175, 'expertise_impact': 0.72, 'load_balancing_factor': 0.8}, 'reason': 'Specializes in Neurologist and treats your condition(s): migraine'}"
+Doctor_002,Cardiologist,1.395,"{'matched_conditions': ['hypertension'], 'score_breakdown': {'medical_fit_impact': 0.175, 'expertise_impact': 0.675, 'load_balancing_factor': 0.6}, 'reason': 'Specializes in Cardiologist and treats your condition(s): hypertension'}"
+Doctor_003,Pulmonologist,1.0475,"{'matched_conditions': [], 'score_breakdown': {'medical_fit_impact': 0.0, 'expertise_impact': 0.63, 'load_balancing_factor': 0.5}, 'reason': 'General match based on risk scores and availability.'}"
